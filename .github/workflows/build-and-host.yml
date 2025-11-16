@@ -44,5 +44,5 @@ jobs:
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          firebase deploy --only hosting --token "$FIREBASE_TOKEN" --project smartnote-ai-3d0fd
+          firebase deploy --only hosting --token "$FIREBASE_TOKEN" --non-interactive
 
