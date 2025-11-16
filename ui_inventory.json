@@ -1,0 +1,314 @@
+{
+  "project_name": "SmartNote AI",
+  "framework": "React + TypeScript + Vite",
+  "ui_library": "shadcn/ui (Radix UI + Tailwind CSS)",
+  "routing": "react-router-dom",
+  "pages": [
+    {
+      "path": "src/pages/Landing.tsx",
+      "type": "page",
+      "route": "/",
+      "purpose": "Landing page with hero section, features, and CTA",
+      "exports": ["default Landing"],
+      "todos": []
+    },
+    {
+      "path": "src/pages/Login.tsx",
+      "type": "page",
+      "route": "/login",
+      "purpose": "User login page with email/password form",
+      "exports": ["default Login"],
+      "todos": ["TODO: Integrate Firebase authentication"],
+      "integration_points": ["src/services/auth.js"]
+    },
+    {
+      "path": "src/pages/Signup.tsx",
+      "type": "page",
+      "route": "/signup",
+      "purpose": "User registration page with name, email, password fields",
+      "exports": ["default Signup"],
+      "todos": ["TODO: Integrate Firebase authentication"],
+      "integration_points": ["src/services/auth.js"]
+    },
+    {
+      "path": "src/pages/SubjectSetup.tsx",
+      "type": "page",
+      "route": "/subject-setup",
+      "purpose": "Onboarding page for users to add their subjects",
+      "exports": ["default SubjectSetup"],
+      "todos": ["TODO: Save subjects to Firebase"],
+      "integration_points": ["src/hooks/useSubjects.tsx", "Firestore users/{uid}/subjects"]
+    },
+    {
+      "path": "src/pages/Dashboard.tsx",
+      "type": "page",
+      "route": "/dashboard",
+      "purpose": "Main dashboard showing stats, subjects, and recent notes",
+      "exports": ["default Dashboard"],
+      "todos": ["TODO: Replace with Firebase data"],
+      "integration_points": ["Firestore users/{uid}/notes", "Firestore users/{uid}/subjects"]
+    },
+    {
+      "path": "src/pages/Record.tsx",
+      "type": "page",
+      "route": "/record",
+      "purpose": "Real-time recording interface with live transcript and AI notes",
+      "exports": ["default Record"],
+      "todos": [
+        "TODO: Implement actual recording with Web Speech API or Firebase",
+        "TODO: Save to Firebase"
+      ],
+      "integration_points": ["src/hooks/useRecorder.tsx", "src/services/summary.js", "src/services/subjectDetector.js"]
+    },
+    {
+      "path": "src/pages/NoteDetail.tsx",
+      "type": "page",
+      "route": "/notes/:id",
+      "purpose": "Detailed view of a single note with transcript, summary, and export options",
+      "exports": ["default NoteDetail"],
+      "todos": [
+        "TODO: Replace with Firebase data",
+        "TODO: Implement PDF export",
+        "TODO: Implement share functionality"
+      ],
+      "integration_points": ["Firestore users/{uid}/notes/{noteId}", "src/lib/exportUtils.ts"]
+    },
+    {
+      "path": "src/pages/Subjects.tsx",
+      "type": "page",
+      "route": "/subjects",
+      "purpose": "Manage subjects list with add/remove functionality",
+      "exports": ["default Subjects"],
+      "todos": ["TODO: Replace with Firebase data"],
+      "integration_points": ["src/hooks/useSubjects.tsx"]
+    },
+    {
+      "path": "src/pages/Settings.tsx",
+      "type": "page",
+      "route": "/settings",
+      "purpose": "User settings page",
+      "exports": ["default Settings"],
+      "todos": []
+    },
+    {
+      "path": "src/pages/NotFound.tsx",
+      "type": "page",
+      "route": "*",
+      "purpose": "404 error page",
+      "exports": ["default NotFound"],
+      "todos": []
+    },
+    {
+      "path": "src/pages/Index.tsx",
+      "type": "page",
+      "purpose": "Index page (if exists)",
+      "exports": [],
+      "todos": []
+    }
+  ],
+  "components": [
+    {
+      "path": "src/components/DashboardLayout.tsx",
+      "type": "component",
+      "purpose": "Layout wrapper for authenticated pages with header and navigation",
+      "props": {
+        "children": "ReactNode"
+      },
+      "exports": ["default DashboardLayout"]
+    },
+    {
+      "path": "src/components/NavLink.tsx",
+      "type": "component",
+      "purpose": "Navigation link component",
+      "exports": []
+    },
+    {
+      "path": "src/components/ui/*.tsx",
+      "type": "component_library",
+      "purpose": "shadcn/ui component library (40+ components including Button, Card, Input, Dialog, etc.)",
+      "library": "Radix UI primitives with Tailwind CSS styling"
+    }
+  ],
+  "hooks": [
+    {
+      "path": "src/hooks/use-mobile.tsx",
+      "type": "hook",
+      "purpose": "Detect mobile device",
+      "exports": []
+    },
+    {
+      "path": "src/hooks/use-toast.ts",
+      "type": "hook",
+      "purpose": "Toast notification hook",
+      "exports": []
+    }
+  ],
+  "utilities": [
+    {
+      "path": "src/lib/utils.ts",
+      "type": "utility",
+      "purpose": "Utility functions including cn() for className merging",
+      "exports": ["cn"]
+    }
+  ],
+  "assets": [
+    {
+      "path": "src/assets/hero-image.jpg",
+      "type": "asset",
+      "purpose": "Hero section image for landing page"
+    },
+    {
+      "path": "src/assets/recording-visual.jpg",
+      "type": "asset",
+      "purpose": "Recording visualization image"
+    },
+    {
+      "path": "public/favicon.ico",
+      "type": "asset",
+      "purpose": "Favicon"
+    },
+    {
+      "path": "public/placeholder.svg",
+      "type": "asset",
+      "purpose": "Placeholder image"
+    },
+    {
+      "path": "public/robots.txt",
+      "type": "asset",
+      "purpose": "Robots.txt file"
+    }
+  ],
+  "styles": [
+    {
+      "path": "src/index.css",
+      "type": "style",
+      "purpose": "Global styles and Tailwind CSS imports"
+    },
+    {
+      "path": "src/App.css",
+      "type": "style",
+      "purpose": "App-specific styles"
+    },
+    {
+      "path": "tailwind.config.ts",
+      "type": "config",
+      "purpose": "Tailwind CSS configuration"
+    },
+    {
+      "path": "postcss.config.js",
+      "type": "config",
+      "purpose": "PostCSS configuration"
+    }
+  ],
+  "config_files": [
+    {
+      "path": "package.json",
+      "type": "config",
+      "purpose": "Project dependencies and scripts",
+      "dependencies": {
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "react-router-dom": "^6.30.1",
+        "@tanstack/react-query": "^5.83.0",
+        "tailwindcss": "^3.4.17",
+        "lucide-react": "^0.462.0",
+        "zod": "^3.25.76",
+        "react-hook-form": "^7.61.1"
+      },
+      "dev_dependencies": {
+        "lovable-tagger": "^1.1.11"
+      }
+    },
+    {
+      "path": "vite.config.ts",
+      "type": "config",
+      "purpose": "Vite build configuration",
+      "branding_references": ["lovable-tagger import"]
+    },
+    {
+      "path": "tsconfig.json",
+      "type": "config",
+      "purpose": "TypeScript configuration"
+    },
+    {
+      "path": "components.json",
+      "type": "config",
+      "purpose": "shadcn/ui component configuration"
+    }
+  ],
+  "branding_references": [
+    {
+      "file": "README.md",
+      "occurrences": 8,
+      "type": "text_content"
+    },
+    {
+      "file": "index.html",
+      "occurrences": 3,
+      "type": "meta_tags"
+    },
+    {
+      "file": "vite.config.ts",
+      "occurrences": 1,
+      "type": "import_statement"
+    },
+    {
+      "file": "package.json",
+      "occurrences": 1,
+      "type": "dev_dependency"
+    }
+  ],
+  "firebase_placeholders": [
+    {
+      "file": "src/pages/Login.tsx",
+      "line": 21,
+      "text": "TODO: Integrate Firebase authentication"
+    },
+    {
+      "file": "src/pages/Signup.tsx",
+      "line": 33,
+      "text": "TODO: Integrate Firebase authentication"
+    },
+    {
+      "file": "src/pages/SubjectSetup.tsx",
+      "line": 41,
+      "text": "TODO: Save subjects to Firebase"
+    },
+    {
+      "file": "src/pages/Dashboard.tsx",
+      "line": 9,
+      "text": "TODO: Replace with Firebase data"
+    },
+    {
+      "file": "src/pages/Record.tsx",
+      "line": 20,
+      "text": "TODO: Implement actual recording with Web Speech API or Firebase"
+    },
+    {
+      "file": "src/pages/Record.tsx",
+      "line": 43,
+      "text": "TODO: Save to Firebase"
+    },
+    {
+      "file": "src/pages/NoteDetail.tsx",
+      "line": 14,
+      "text": "TODO: Replace with Firebase data"
+    },
+    {
+      "file": "src/pages/Subjects.tsx",
+      "line": 15,
+      "text": "TODO: Replace with Firebase data"
+    }
+  ],
+  "responsive_patterns": [
+    {
+      "pattern": "Tailwind responsive breakpoints (sm:, md:, lg:)",
+      "usage": "Used throughout all pages for mobile-first responsive design"
+    },
+    {
+      "pattern": "use-mobile hook",
+      "usage": "Available for conditional mobile rendering"
+    }
+  ]
+}
+
