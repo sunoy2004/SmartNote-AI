@@ -1,0 +1,30 @@
+# ASR Model Architecture
+
+```
+Audio Input → Mel-Spectrogram → CNN Layers → Bi-LSTM Layers → Fully Connected → CTC Loss
+                              (3× Conv1D)    (2× Bi-LSTM)     Layer          Output
+                              
+Details:
+1. Audio Preprocessing:
+   - Sample Rate Conversion: 16kHz mono
+   - Mel-Spectrogram Extraction:
+     * Window size: 25ms (400 samples)
+     * Stride: 10ms (160 samples)
+     * Mel filters: 80
+
+2. CNN Feature Extraction (3 Layers):
+   - Conv1D Layer: Extracts local features
+   - Batch Normalization: Normalizes activations
+   - ReLU Activation: Introduces non-linearity
+   - Dropout (0.1): Regularization
+
+3. Bi-LSTM Sequence Modeling (2 Layers):
+   - Hidden Units: 256 units per layer
+   - Bidirectional: Forward & backward processing
+   - Dropout: 0.1 between layers
+
+4. Output Layer:
+   - Fully Connected: 512 → 40 classes
+   - Softmax: Probability distribution
+   - Character Set: 39 chars + 1 blank token
+```

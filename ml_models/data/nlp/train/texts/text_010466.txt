@@ -1,0 +1,1 @@
+there was good reason to stop and think even for the world's most emotionless man

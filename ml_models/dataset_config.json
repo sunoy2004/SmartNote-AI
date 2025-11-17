@@ -1,0 +1,27 @@
+{
+  "dataset_name": "librispeech",
+  "source": "HuggingFace nguyenvulebinh/libris_clean_100",
+  "size_hours": 100,
+  "sampling_rate": 16000,
+  "audio_format": "WAV",
+  "num_speakers": "Diverse",
+  "linguistic_diversity": "High",
+  "transcription_quality": "Professional",
+  "asr_suitability": "Excellent",
+  "nlp_suitability": "Good (with synthetic summaries)",
+  "preprocessing": {
+    "audio_normalization": "Convert to 16kHz mono",
+    "text_normalization": "Lowercase conversion",
+    "spectrogram_extraction": "80-dim mel-spectrograms",
+    "tokenization": "BPE with 5000 vocab size"
+  },
+  "splits": {
+    "train": 0.8,
+    "validation": 0.1,
+    "test": 0.1
+  },
+  "storage_paths": {
+    "asr_data": "./data/asr/",
+    "nlp_data": "./data/nlp/"
+  }
+}

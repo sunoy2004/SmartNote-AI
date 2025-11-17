@@ -1,0 +1,49 @@
+# System Architecture
+
+```
+┌─────────────────┐
+│   Audio File    │
+│  (.wav/.mp3)    │
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│  Audio          │
+│ Preprocessing   │
+│ (Resampling,    │
+│  Mono conversion│
+│  Mel-spectrogram│
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│   ASR Model     │
+│  (CNN + Bi-LSTM)│
+│  + CTC Loss     │
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│   Transcript    │
+│     (Text)      │
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│   NLP Model     │
+│ (Transformer    │
+│  Encoder-Decoder)│
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│   Notes/Summary │
+│     (Text)      │
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│  Output Files   │
+│  (JSON/TXT)     │
+└─────────────────┘
+```

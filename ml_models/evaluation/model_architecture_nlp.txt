@@ -1,0 +1,52 @@
+# NLP Summarization Model Architecture
+
+```
+Text Input → BPE Tokenization → Embedding + Positional Encoding → Transformer Encoder → Transformer Decoder → Output Projection → Notes Output
+                                                    │                        │              (4 Layers)       (4 Layers)                        
+                                                    └────────────────────────┼─────────────────┐
+                                                                             ▼                 │
+                                                                      Multi-Head Attention     │
+                                                                      (8 Heads, 256 dims)      │
+                                                                             │                 │
+                                                                      Feed-Forward Network     │
+                                                                      (512 hidden dims)        │
+                                                                             │                 │
+                                                                      Layer Normalization      │
+                                                                             │                 │
+                                                                      Residual Connections     │
+                                                                             │                 │
+                                                                      Dropout (0.1)            │
+                                                                             │                 │
+                                                                             └─────────────────┘
+                                                                                   Decoder
+                                                                                   Inputs
+
+Details:
+1. Tokenization:
+   - Byte-Pair Encoding (BPE)
+   - Vocabulary Size: 10,000 tokens
+   - Special Tokens: PAD, UNK, BOS, EOS
+
+2. Embedding Layer:
+   - Dimension: 256
+   - Positional Encoding: Sinusoidal
+
+3. Encoder (4 Layers):
+   - Multi-Head Attention: 8 heads
+   - Feed-Forward Network: 256 → 512 → 256
+   - Layer Normalization
+   - Residual Connections
+   - Dropout: 0.1
+
+4. Decoder (4 Layers):
+   - Masked Multi-Head Attention
+   - Multi-Head Attention (to encoder)
+   - Feed-Forward Network
+   - Layer Normalization
+   - Residual Connections
+   - Dropout: 0.1
+
+5. Output Layer:
+   - Linear Projection: 256 → 10,000
+   - Softmax: Probability distribution
+```

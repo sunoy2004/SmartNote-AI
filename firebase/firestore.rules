@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection - users can only access their own document
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      // Subjects subcollection
+      match /subjects/{subjectId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Notes subcollection
+      match /notes/{noteId} {
+        allow read, write: if isOwner(userId);
+        
+        // Allow creation with server timestamp
+        allow create: if isOwner(userId) 
+          && request.resource.data.keys().hasAll(['title', 'transcript', 'summary', 'subject', 'createdAt', 'durationMs'])
+          && request.resource.data.createdAt == request.time;
+      }
+      
+      // Transcripts subcollection (optional)
+      match /transcripts/{transcriptId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

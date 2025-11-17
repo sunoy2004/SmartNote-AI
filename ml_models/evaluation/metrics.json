@@ -1,0 +1,35 @@
+{
+  "asr_metrics": {
+    "wer": {
+      "train": 0.0,
+      "validation": 0.0,
+      "test": 0.0
+    },
+    "cer": {
+      "train": 0.0,
+      "validation": 0.0,
+      "test": 0.0
+    }
+  },
+  "nlp_metrics": {
+    "rouge_1": {
+      "train": 0.0,
+      "validation": 0.0,
+      "test": 0.0
+    },
+    "rouge_2": {
+      "train": 0.0,
+      "validation": 0.0,
+      "test": 0.0
+    },
+    "rouge_l": {
+      "train": 0.0,
+      "validation": 0.0,
+      "test": 0.0
+    }
+  },
+  "pipeline_metrics": {
+    "end_to_end_accuracy": 0.0,
+    "processing_time": 0.0
+  }
+}

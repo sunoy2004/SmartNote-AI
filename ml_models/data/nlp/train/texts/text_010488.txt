@@ -1,0 +1,1 @@
+thousands of handkerchiefs were waving above these tightly packed masses hailing the abraham lincoln until it reached the waters of the hudson river at the tip of the long peninsula that forms new york city
