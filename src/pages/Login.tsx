@@ -28,6 +28,12 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      // Check if Firebase is properly configured
+      const { auth } = await import("@/firebase/config");
+      if (!auth) {
+        throw new Error("Firebase is not properly configured. Please check your environment variables.");
+      }
+
       const credential = await loginWithEmail(email, password);
       const loggedInUser = credential.user;
 
@@ -39,10 +45,20 @@ const Login = () => {
       const hasSubjects = await hasUserCompletedOnboarding(loggedInUser.uid);
       navigate(hasSubjects ? "/dashboard" : "/subject-setup", { replace: true });
     } catch (err) {
+      console.error("Login error:", err);
       const error = err as Error;
+      
+      // Provide more helpful error messages
+      let errorMessage = error.message || "Please check your credentials and try again.";
+      
+      // Check for Firebase config errors
+      if (errorMessage.includes("api-key-not-valid") || errorMessage.includes("mock")) {
+        errorMessage = "Firebase configuration error. Please contact support.";
+      }
+      
       toast({
         title: "Login failed",
-        description: error.message || "Please check your credentials and try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

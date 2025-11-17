@@ -49,6 +49,12 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
+      // Check if Firebase is properly configured
+      const { auth } = await import("@/firebase/config");
+      if (!auth) {
+        throw new Error("Firebase is not properly configured. Please check your environment variables.");
+      }
+
       const credential = await signUpWithEmail(email, password, name);
       toast({
         title: "Account created",
@@ -56,7 +62,16 @@ const Signup = () => {
       });
       navigate("/subject-setup", { replace: true });
     } catch (err) {
+      console.error("Signup error:", err);
       const error = err as Error;
+      
+      // Provide more helpful error messages
+      let errorMessage = error.message || "Failed to create account. Please try again.";
+      
+      // Check for Firebase config errors
+      if (errorMessage.includes("api-key-not-valid") || errorMessage.includes("mock")) {
+        errorMessage = "Firebase configuration error. Please contact support.";
+      }
       toast({
         title: "Signup failed",
         description: error.message || "Please try again.",

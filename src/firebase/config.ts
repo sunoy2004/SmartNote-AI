@@ -20,9 +20,16 @@ const firebaseConfig = {
   measurementId: readEnv("FIREBASE_MEASUREMENT_ID", "mock-measurement-id"),
 };
 
-// Debug: Log Firebase config status (only in development)
-if (import.meta.env.DEV) {
-  const hasRealConfig = firebaseConfig.apiKey !== "mock-api-key";
+// Debug: Log Firebase config status (always log in production to help debug)
+const hasRealConfig = firebaseConfig.apiKey !== "mock-api-key" && !firebaseConfig.apiKey.startsWith("mock-");
+if (!hasRealConfig) {
+  console.error("❌ Firebase Config Error: Using mock/fallback values!");
+  console.error("Environment variables:", {
+    VITE_FIREBASE_API_KEY: !!import.meta.env.VITE_FIREBASE_API_KEY,
+    REACT_APP_FIREBASE_API_KEY: !!import.meta.env.REACT_APP_FIREBASE_API_KEY,
+    NODE_ENV: import.meta.env.MODE,
+  });
+} else if (import.meta.env.DEV) {
   console.log("🔥 Firebase Config:", {
     hasRealConfig,
     projectId: firebaseConfig.projectId,
