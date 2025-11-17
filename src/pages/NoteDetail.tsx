@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Share2, Copy, Calendar, Tag, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useNotes, Note } from "@/hooks/useNotes";
+import { useNotes, Note, toDate } from "@/hooks/useNotes";
 import { downloadNoteAsPdf, copyToClipboard, shareNote } from "@/lib/exportUtils";
 
 const NoteDetail = () => {
@@ -47,7 +47,7 @@ const NoteDetail = () => {
       content: note.notes,
       transcript: note.transcript,
       subject: note.subject,
-      date: note.createdAt?.toISOString() ?? new Date().toISOString(),
+      date: toDate(note.createdAt)?.toISOString() ?? new Date().toISOString(),
     });
     toast({
       title: "Exported to PDF",
@@ -100,7 +100,7 @@ const NoteDetail = () => {
               <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  {note.createdAt ? note.createdAt.toLocaleString() : "Just now"}
+                  {note.createdAt ? (toDate(note.createdAt)?.toLocaleString() || "Just now") : "Just now"}
                 </div>
                 <div className="flex items-center gap-1">
                   <Tag className="h-4 w-4" />
