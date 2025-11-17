@@ -55,19 +55,46 @@ jobs:
           REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID || secrets.REACT_APP_FIREBASE_MEASUREMENT_ID }}
         run: npm run build
 
-      # TODO: Add Capacitor/React Native build steps
-      # This workflow is a placeholder for future mobile app implementation
-      # Steps would include:
-      # - Install Capacitor CLI
-      # - Sync web assets to native project
-      # - Build Android APK using Gradle
-      # - Upload APK as artifact
-
-      - name: Placeholder - Mobile build not yet implemented
+      - name: Install Capacitor
         run: |
-          echo "Mobile app build pipeline not yet implemented."
-          echo "To implement:"
-          echo "1. Set up Capacitor or React Native"
-          echo "2. Configure Android project"
-          echo "3. Add build steps above"
+          npm install -g @capacitor/cli
+          npm install @capacitor/core @capacitor/android @capacitor/splash-screen
+
+      - name: Add Android platform
+        run: |
+          npx cap add android || echo "Android platform already exists"
+
+      - name: Sync Capacitor
+        run: |
+          npx cap sync android
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission for gradlew
+        working-directory: android
+        run: |
+          chmod +x gradlew
+
+      - name: Build Android APK
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Find APK
+        id: find_apk
+        working-directory: android
+        run: |
+          APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found APK at: $APK_PATH"
+          ls -la app/build/outputs/apk/
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartnote-ai-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+          if-no-files-found: error
 
