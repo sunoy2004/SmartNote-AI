@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, BookOpen } from "lucide-react";
-import { useNotes } from "@/hooks/useNotes";
+import { useNotes, toDate } from "@/hooks/useNotes";
 import { slugify, deslugify } from "@/lib/utils";
 
 const SubjectNotes = () => {
@@ -71,7 +71,7 @@ const SubjectNotes = () => {
                           <div className="flex items-center text-xs text-muted-foreground">
                             <Calendar className="h-3 w-3 mr-1" />
                             {note.createdAt
-                              ? note.createdAt.toLocaleDateString()
+                              ? (toDate(note.createdAt)?.toLocaleDateString() || "Just now")
                               : "Just now"}
                           </div>
                         </div>

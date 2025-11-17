@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mic, BookOpen, Calendar, Plus, FileText, Clock } from "lucide-react";
-import { useNotes } from "@/hooks/useNotes";
+import { useNotes, toDate } from "@/hooks/useNotes";
 import { useSubjects } from "@/hooks/useSubjects";
 import { slugify } from "@/lib/utils";
 
@@ -51,7 +51,7 @@ const Dashboard = () => {
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Last update: {recentNotes[0]?.createdAt?.toLocaleDateString() || "—"}
+              Last update: {recentNotes[0]?.createdAt ? (toDate(recentNotes[0].createdAt)?.toLocaleDateString() || "—") : "—"}
             </p>
           </CardContent>
         </Card>
@@ -202,7 +202,7 @@ const Dashboard = () => {
                             <div className="flex items-center text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3 mr-1" />
                               {note.createdAt
-                                ? note.createdAt.toLocaleDateString()
+                                ? (toDate(note.createdAt)?.toLocaleDateString() || "Just now")
                                 : "Just now"}
                             </div>
                           </div>

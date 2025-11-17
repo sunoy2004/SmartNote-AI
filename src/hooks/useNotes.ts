@@ -11,7 +11,7 @@ export interface Note {
   transcript: string;
   summary: string;
   notes: string;
-  createdAt: Timestamp | null;
+  createdAt: Timestamp | Date | null;
   durationMs?: number;
   audioUrl?: string | null;
   stats?: {
@@ -19,6 +19,19 @@ export interface Note {
     characters: number;
   };
 }
+
+/**
+ * Safely convert Firestore Timestamp to Date
+ */
+export const toDate = (value: Timestamp | Date | null | undefined): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (value instanceof Timestamp) return value.toDate();
+  if (typeof value === "object" && "seconds" in value) {
+    return new Date((value as { seconds: number }).seconds * 1000);
+  }
+  return null;
+};
 
 type TimestampValue = Timestamp | { seconds: number; nanoseconds: number } | null;
 
@@ -62,6 +75,7 @@ export const useNotes = () => {
       const notesData: Note[] = [];
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
+        const createdAt = data.createdAt ? (data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt) : null;
         notesData.push({
           id: docSnap.id,
           subject: data.subject || "General",
@@ -70,7 +84,7 @@ export const useNotes = () => {
           transcript: data.transcript || "",
           summary: data.summary || "",
           notes: data.notes || "",
-          createdAt: data.createdAt || null,
+          createdAt: createdAt,
           durationMs: data.durationMs,
           audioUrl: data.audioUrl || null,
           stats: data.stats,
@@ -106,6 +120,7 @@ export const useNotes = () => {
         }
 
         const data = noteSnap.data();
+        const createdAt = data.createdAt ? (data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt) : null;
         return {
           id: noteSnap.id,
           subject: data.subject || "General",
@@ -114,7 +129,7 @@ export const useNotes = () => {
           transcript: data.transcript || "",
           summary: data.summary || "",
           notes: data.notes || "",
-          createdAt: data.createdAt || null,
+          createdAt: createdAt,
           durationMs: data.durationMs,
           audioUrl: data.audioUrl || null,
           stats: data.stats,
