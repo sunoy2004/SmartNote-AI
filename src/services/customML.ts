@@ -4,7 +4,10 @@
  */
 
 // Import necessary utilities
-import { generatePersonalizedSummary as originalGeneratePersonalizedSummary } from "./summary";
+import {
+  generatePersonalizedSummary as originalGeneratePersonalizedSummary,
+  generateStructuredNotes,
+} from "./summary";
 import { detectSubject as originalDetectSubject } from "./subjectDetector";
 
 // API endpoint for the Python server
@@ -216,10 +219,10 @@ export const processAudioWithCustomModels = async (
  * @returns Boolean indicating if custom models can be used
  */
 export const areCustomModelsAvailable = (): boolean => {
-  // In a real implementation, this would check if the Python environment is available
-  // For now, we'll return false to indicate that the custom models are not yet fully integrated
-  // When you're ready to enable the custom models, change this to return true
-  return true;
+  return (
+    typeof import.meta !== "undefined" &&
+    import.meta.env?.VITE_ENABLE_CUSTOM_MODELS === "true"
+  );
 };
 
 /**
@@ -234,8 +237,8 @@ export const processWithFallback = (
   subjects: string[],
   preference: "Beginner" | "Intermediate" | "Advanced" = "Intermediate"
 ) => {
-  const notes = originalGeneratePersonalizedSummary(transcript, preference);
-  const summary = originalGeneratePersonalizedSummary(transcript, "Intermediate");
+  const notes = generateStructuredNotes(transcript);
+  const summary = originalGeneratePersonalizedSummary(transcript, preference);
   const subjectResult = originalDetectSubject(transcript, subjects);
   
   return {

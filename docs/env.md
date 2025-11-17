@@ -60,6 +60,7 @@ REACT_APP_OPENAI_API_KEY=sk-...
 | `REACT_APP_FIREBASE_APP_ID` | Yes | Firebase app ID |
 | `REACT_APP_FIREBASE_MEASUREMENT_ID` | Yes | Firebase Analytics measurement ID |
 | `REACT_APP_OPENAI_API_KEY` | No | OpenAI API key (server-side only) |
+| `VITE_ENABLE_CUSTOM_MODELS` | No | Set to `true` only when the local Python ML API is running (defaults to false) |
 
 ## Firebase Services Setup
 

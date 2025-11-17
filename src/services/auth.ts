@@ -7,6 +7,7 @@ import {
   UserCredential,
   updateProfile,
   IdTokenResult,
+  FirebaseError,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/firebase/config";
@@ -14,8 +15,45 @@ import { auth, db } from "@/firebase/config";
 // Mock user for local development
 let mockUser: User | null = null;
 
-// Check if we're in development mode
-const isDevelopment = import.meta.env.DEV;
+// Check if we're using mock Firebase config (only use mocks when config is actually mock)
+const isUsingMockConfig = () => {
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.REACT_APP_FIREBASE_API_KEY;
+  return !apiKey || apiKey === "mock-api-key" || apiKey.startsWith("mock-");
+};
+
+/**
+ * Convert Firebase auth errors to user-friendly messages
+ */
+const getAuthErrorMessage = (error: unknown): string => {
+  if (error && typeof error === "object" && "code" in error) {
+    const firebaseError = error as FirebaseError;
+    switch (firebaseError.code) {
+      case "auth/invalid-credential":
+      case "auth/user-not-found":
+        return "No account found with this email. Please sign up first.";
+      case "auth/wrong-password":
+        return "Incorrect password. Please try again.";
+      case "auth/email-already-in-use":
+        return "An account with this email already exists. Please login instead.";
+      case "auth/weak-password":
+        return "Password is too weak. Please use at least 6 characters.";
+      case "auth/invalid-email":
+        return "Invalid email address. Please check and try again.";
+      case "auth/too-many-requests":
+        return "Too many failed attempts. Please try again later.";
+      case "auth/network-request-failed":
+        return "Network error. Please check your internet connection.";
+      case "auth/operation-not-allowed":
+        return "Email/password authentication is not enabled. Please contact support.";
+      default:
+        return firebaseError.message || "An error occurred. Please try again.";
+    }
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "An unexpected error occurred. Please try again.";
+};
 
 /**
  * Sign up a new user with email and password
@@ -26,7 +64,7 @@ export const signUpWithEmail = async (
   password: string,
   displayName: string
 ): Promise<UserCredential | { user: User }> => {
-  if (isDevelopment) {
+  if (isUsingMockConfig()) {
     // Mock implementation for local development
     mockUser = {
       uid: "mock-user-id",
@@ -73,9 +111,9 @@ export const signUpWithEmail = async (
 
     return userCredential;
   } catch (error) {
-    const err = error as Error;
-    console.error("Error signing up:", err);
-    throw err;
+    console.error("Error signing up:", error);
+    const friendlyMessage = getAuthErrorMessage(error);
+    throw new Error(friendlyMessage);
   }
 };
 
@@ -86,7 +124,7 @@ export const loginWithEmail = async (
   email: string,
   password: string
 ): Promise<UserCredential | { user: User }> => {
-  if (isDevelopment) {
+  if (isUsingMockConfig()) {
     // Mock implementation for local development
     mockUser = {
       uid: "mock-user-id",
@@ -112,9 +150,9 @@ export const loginWithEmail = async (
   try {
     return await signInWithEmailAndPassword(auth, email, password);
   } catch (error) {
-    const err = error as Error;
-    console.error("Error signing in:", err);
-    throw err;
+    console.error("Error signing in:", error);
+    const friendlyMessage = getAuthErrorMessage(error);
+    throw new Error(friendlyMessage);
   }
 };
 
@@ -122,7 +160,7 @@ export const loginWithEmail = async (
  * Sign out current user
  */
 export const logout = async (): Promise<void> => {
-  if (isDevelopment) {
+  if (isUsingMockConfig()) {
     // Mock implementation for local development
     mockUser = null;
     return Promise.resolve();
@@ -145,7 +183,7 @@ export const logout = async (): Promise<void> => {
 export const onAuthStateChangedListener = (
   callback: (user: User | null) => void
 ): (() => void) => {
-  if (isDevelopment) {
+  if (isUsingMockConfig()) {
     // Mock implementation for local development
     callback(mockUser);
     // Simulate auth state changes
@@ -163,7 +201,7 @@ export const onAuthStateChangedListener = (
  * Get current user
  */
 export const getCurrentUser = (): User | null => {
-  if (isDevelopment) {
+  if (isUsingMockConfig()) {
     return mockUser;
   }
   
@@ -176,7 +214,7 @@ export const getCurrentUser = (): User | null => {
 export const hasUserCompletedOnboarding = async (
   userId: string
 ): Promise<boolean> => {
-  if (isDevelopment) {
+  if (isUsingMockConfig()) {
     // Mock implementation for local development
     return true;
   }

@@ -2,46 +2,23 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, BookOpen, Calendar, TrendingUp, Plus, FileText, Clock } from "lucide-react";
-
-// Mock data
-const recentNotes = [
-  {
-    id: 1,
-    title: "Quantum Mechanics Fundamentals",
-    subject: "Physics",
-    date: "2024-01-15",
-    summary: "Discussed wave-particle duality, Schrödinger equation, and quantum states...",
-  },
-  {
-    id: 2,
-    title: "Data Structures: Binary Trees",
-    subject: "Computer Science",
-    date: "2024-01-14",
-    summary: "Discussed tree traversal algorithms, BST operations...",
-  },
-  {
-    id: 3,
-    title: "Calculus: Integration Techniques",
-    subject: "Mathematics",
-    date: "2024-01-13",
-    summary: "Learned substitution method, integration by parts...",
-  },
-];
-
-const subjects = [
-  { name: "Mathematics", noteCount: 12, color: "bg-primary" },
-  { name: "Physics", noteCount: 8, color: "bg-secondary" },
-  { name: "Computer Science", noteCount: 15, color: "bg-accent" },
-];
-
-const stats = [
-  { label: "Total Notes", value: "24", icon: FileText, change: "+12%" },
-  { label: "Study Hours", value: "18", icon: Clock, change: "+5%" },
-  { label: "Subjects", value: "5", icon: BookOpen, change: "+1" },
-];
+import { Mic, BookOpen, Calendar, Plus, FileText, Clock } from "lucide-react";
+import { useNotes } from "@/hooks/useNotes";
+import { useSubjects } from "@/hooks/useSubjects";
+import { slugify } from "@/lib/utils";
 
 const Dashboard = () => {
+  const { notes, loading: notesLoading } = useNotes();
+  const { subjects, loading: subjectsLoading } = useSubjects();
+
+  const totalDuration = notes.reduce((total, note) => total + (note.durationMs || 0), 0);
+  const totalHours = (totalDuration / (1000 * 60 * 60)).toFixed(1);
+  const noteCountBySubject = subjects.map((subject) => ({
+    ...subject,
+    count: notes.filter((note) => note.subject === subject.name).length,
+  }));
+  const recentNotes = notes.slice(0, 5);
+
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
@@ -62,28 +39,58 @@ const Dashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="border-border hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-primary/10">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  {stat.change} from last week
+        <Card className="border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Notes</p>
+                <p className="text-2xl font-bold">{notes.length}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/10">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Last update: {recentNotes[0]?.createdAt?.toLocaleDateString() || "—"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Study Hours</p>
+                <p className="text-2xl font-bold">
+                  {Number.isNaN(Number(totalHours)) ? "0.0" : totalHours}
                 </p>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+              <div className="p-3 rounded-lg bg-primary/10">
+                <Clock className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Based on recorded note duration
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Subjects</p>
+                <p className="text-2xl font-bold">{subjects.length}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/10">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Add more subjects from the Subjects page
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Subjects and Recent Notes */}
@@ -101,17 +108,29 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {subjects.map((subject, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-3 w-3 rounded-full ${subject.color}`}></div>
-                      <span className="font-medium">{subject.name}</span>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {subject.noteCount} notes
-                    </Badge>
-                  </div>
-                ))}
+                {subjectsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading subjects...</p>
+                ) : subjects.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No subjects yet. Add your first subject to get started.
+                  </p>
+                ) : (
+                  noteCountBySubject.map((subject) => (
+                    <Link
+                      key={subject.id}
+                      to={`/subjects/${slugify(subject.name)}`}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`h-3 w-3 rounded-full ${subject.color ?? "bg-primary"}`}></div>
+                        <span className="font-medium">{subject.name}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {subject.count ?? 0} notes
+                      </Badge>
+                    </Link>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -137,7 +156,7 @@ const Dashboard = () => {
               <Link to="/settings">
                 <Button variant="outline" className="w-full justify-start transition-colors">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add New Subject
+                  Account Settings
                 </Button>
               </Link>
             </CardContent>
@@ -149,33 +168,49 @@ const Dashboard = () => {
           <Card className="border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-lg">Recent Notes</CardTitle>
-              <Button variant="ghost" size="sm">
-                View All
-              </Button>
+              <Link to="/record">
+                <Button variant="ghost" size="sm">
+                  New Recording
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentNotes.map((note) => (
-                  <Link key={note.id} to={`/notes/${note.id}`} className="block">
-                    <div className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors group">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold group-hover:text-primary transition-colors">{note.title}</h3>
-                            <Badge variant="secondary" className="text-xs">
-                              {note.subject}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{note.summary}</p>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {new Date(note.date).toLocaleDateString()}
+                {notesLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading your notes...</p>
+                ) : recentNotes.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    You haven&apos;t recorded any notes yet.
+                  </div>
+                ) : (
+                  recentNotes.map((note) => (
+                    <Link key={note.id} to={`/notes/${note.id}`} className="block">
+                      <div className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors group">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold group-hover:text-primary transition-colors">
+                                {note.title}
+                              </h3>
+                              <Badge variant="secondary" className="text-xs">
+                                {note.subject}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {note.summary || "No summary yet"}
+                            </p>
+                            <div className="flex items-center text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              {note.createdAt
+                                ? note.createdAt.toLocaleDateString()
+                                : "Just now"}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

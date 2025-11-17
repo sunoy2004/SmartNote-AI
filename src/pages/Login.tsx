@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { loginWithEmail, hasUserCompletedOnboarding } from "@/services/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -13,20 +15,39 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // TODO: Integrate Firebase authentication
-    setTimeout(() => {
+    try {
+      const credential = await loginWithEmail(email, password);
+      const loggedInUser = credential.user;
+
       toast({
-        title: "Login Successful",
-        description: "Welcome back to SmartNote AI!",
+        title: "Login successful",
+        description: `Welcome back, ${loggedInUser.displayName || "there"}!`,
       });
-      navigate("/dashboard");
+
+      const hasSubjects = await hasUserCompletedOnboarding(loggedInUser.uid);
+      navigate(hasSubjects ? "/dashboard" : "/subject-setup", { replace: true });
+    } catch (err) {
+      const error = err as Error;
+      toast({
+        title: "Login failed",
+        description: error.message || "Please check your credentials and try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

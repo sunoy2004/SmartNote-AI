@@ -101,6 +101,56 @@ export const generatePersonalizedSummary = (
   return generateSummary(text, maxLength);
 };
 
+export const generateStructuredNotes = (text: string, maxBullets: number = 8): string => {
+  if (!text?.length) {
+    return "";
+  }
+
+  const sentences =
+    text
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter((sentence) => sentence.length > 0) || [];
+
+  const keywordScores = sentences.map((sentence) => {
+    const lower = sentence.toLowerCase();
+    let score = 0;
+    const keywordGroups = [
+      ["important", "key", "main"],
+      ["definition", "means", "refers"],
+      ["step", "process", "first", "second", "finally"],
+      ["example", "for instance"],
+      ["therefore", "thus", "leads", "results"],
+    ];
+
+    keywordGroups.forEach((group, index) => {
+      group.forEach((keyword) => {
+        if (lower.includes(keyword)) {
+          score += (group.length - index) * 2;
+        }
+      });
+    });
+
+    if (sentence.includes(":") || sentence.includes(" - ")) {
+      score += 3;
+    }
+
+    return { text: sentence, score };
+  });
+
+  keywordScores.sort((a, b) => b.score - a.score);
+
+  const bullets = keywordScores
+    .slice(0, maxBullets)
+    .map((item) => `• ${item.text}`);
+
+  if (bullets.length === 0) {
+    return sentences.slice(0, maxBullets).map((sentence) => `• ${sentence}`).join("\n");
+  }
+
+  return bullets.join("\n");
+};
+
 /**
  * Mark summary as pending server-side generation
  * This flag indicates that a higher-quality LLM summary should be generated

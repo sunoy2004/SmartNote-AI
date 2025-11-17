@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,30 +6,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Brain, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSubjects } from "@/hooks/useSubjects";
 
 const SubjectSetup = () => {
-  const [subjects, setSubjects] = useState<string[]>([
-    "Mathematics",
-    "Physics",
-    "Computer Science",
-  ]);
   const [newSubject, setNewSubject] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { subjects, addSubject, removeSubject } = useSubjects();
 
-  const addSubject = () => {
-    if (newSubject.trim() && !subjects.includes(newSubject.trim())) {
-      setSubjects([...subjects, newSubject.trim()]);
+  const hasSubjects = useMemo(() => subjects.length > 0, [subjects]);
+
+  const handleAddSubject = async () => {
+    if (!newSubject.trim()) return;
+
+    const id = await addSubject(newSubject);
+    if (id) {
+      toast({
+        title: "Subject added",
+        description: `${newSubject.trim()} has been added.`,
+      });
       setNewSubject("");
     }
   };
 
-  const removeSubject = (subject: string) => {
-    setSubjects(subjects.filter((s) => s !== subject));
+  const handleRemoveSubject = async (subjectId: string, name: string) => {
+    const removed = await removeSubject(subjectId);
+    if (removed) {
+      toast({
+        title: "Subject removed",
+        description: `${name} was removed from your list.`,
+      });
+    }
   };
 
   const handleContinue = () => {
-    if (subjects.length === 0) {
+    if (!hasSubjects) {
       toast({
         title: "Add at least one subject",
         description: "You need to add subjects to organize your notes",
@@ -38,7 +49,6 @@ const SubjectSetup = () => {
       return;
     }
 
-    // TODO: Save subjects to Firebase
     toast({
       title: "Subjects saved!",
       description: "Your learning journey begins now",
@@ -70,10 +80,10 @@ const SubjectSetup = () => {
                 placeholder="Enter subject name (e.g., Biology)"
                 value={newSubject}
                 onChange={(e) => setNewSubject(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && addSubject()}
+                onKeyDown={(e) => e.key === "Enter" && handleAddSubject()}
                 className="flex-1"
               />
-              <Button onClick={addSubject} variant="default">
+              <Button onClick={handleAddSubject} variant="default">
                 <Plus className="h-4 w-4 mr-2" />
                 Add
               </Button>
@@ -87,13 +97,13 @@ const SubjectSetup = () => {
               ) : (
                 subjects.map((subject) => (
                   <Badge
-                    key={subject}
+                    key={subject.id}
                     variant="secondary"
                     className="px-4 py-2 text-sm flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary/20 transition-smooth"
                   >
-                    {subject}
+                    {subject.name}
                     <button
-                      onClick={() => removeSubject(subject)}
+                      onClick={() => handleRemoveSubject(subject.id, subject.name)}
                       className="hover:text-destructive transition-smooth"
                     >
                       <X className="h-3 w-3" />

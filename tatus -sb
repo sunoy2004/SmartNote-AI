@@ -1,0 +1,336 @@
+[1mdiff --git a/src/pages/Record.tsx b/src/pages/Record.tsx[m
+[1mindex a9a656d3..575c61f1 100644[m
+[1m--- a/src/pages/Record.tsx[m
+[1m+++ b/src/pages/Record.tsx[m
+[36m@@ -1,18 +1,34 @@[m
+[31m-import { useState, useEffect } from "react";[m
+[32m+[m[32mimport { useState, useEffect, useRef } from "react";[m
+ import DashboardLayout from "@/components/DashboardLayout";[m
+ import { Button } from "@/components/ui/button";[m
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";[m
+ import { Badge } from "@/components/ui/badge";[m
+[31m-import { Mic, Square, Save, Sparkles, Volume2, FileText, BookOpen, Lightbulb } from "lucide-react";[m
+[32m+[m[32mimport { Mic, Square, Save, Sparkles, Volume2, FileText, BookOpen, Lightbulb, Loader2 } from "lucide-react";[m
+ import { useToast } from "@/hooks/use-toast";[m
+ import { useRecorder } from "@/hooks/useRecorder";[m
+ import { generatePersonalizedSummary } from "@/services/summary";[m
+ import { detectSubject } from "@/services/subjectDetector";[m
+ import { useSubjects } from "@/hooks/useSubjects";[m
+[32m+[m[32mimport {[m
+[32m+[m[32m  Dialog,[m
+[32m+[m[32m  DialogContent,[m
+[32m+[m[32m  DialogDescription,[m
+[32m+[m[32m  DialogFooter,[m
+[32m+[m[32m  DialogHeader,[m
+[32m+[m[32m  DialogTitle,[m
+[32m+[m[32m} from "@/components/ui/dialog";[m
+[32m+[m[32mimport { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";[m
+[32m+[m[32mimport { useNavigate } from "react-router-dom";[m
+[32m+[m[32mimport { collection, addDoc, serverTimestamp } from "firebase/firestore";[m
+[32m+[m[32mimport { ref, uploadBytes, getDownloadURL } from "firebase/storage";[m
+[32m+[m[32mimport { db, storage } from "@/firebase/config";[m
+[32m+[m[32mimport { getCurrentUser } from "@/services/auth";[m
+ // Import our custom ML service[m
+ import { processWithFallback, areCustomModelsAvailable } from "@/services/customML";[m
+ [m
+ const Record = () => {[m
+[32m+[m[32m  const navigate = useNavigate();[m
+[32m+[m
+   const { [m
+     isRecording, [m
+     transcript, [m
+[36m@@ -27,10 +43,20 @@[m [mconst Record = () => {[m
+   const [summary, setSummary] = useState("");[m
+   const [detectedSubject, setDetectedSubject] = useState("General");[m
+   const [subjectConfidence, setSubjectConfidence] = useState(0);[m
+[32m+[m[32m  const [isSubjectDialogOpen, setIsSubjectDialogOpen] = useState(false);[m
+[32m+[m[32m  const [pendingSubject, setPendingSubject] = useState("General");[m
+[32m+[m[32m  const [isSubjectLocked, setIsSubjectLocked] = useState(false);[m
+[32m+[m[32m  const [isSavingNote, setIsSavingNote] = useState(false);[m
+[32m+[m[32m  const recordingStartRef = useRef<number | null>(null);[m
+[32m+[m[32m  const [recordingDuration, setRecordingDuration] = useState(0);[m
+   const [aiError, setAiError] = useState<string | null>(null);[m
+   const { toast } = useToast();[m
+   const { subjects, getSubjectNames } = useSubjects();[m
+ [m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    setPendingSubject(detectedSubject);[m
+[32m+[m[32m  }, [detectedSubject]);[m
+[32m+[m
+   // Generate notes and summary in real-time as transcript updates[m
+   useEffect(() => {[m
+     if (transcript) {[m
+[36m@@ -45,8 +71,10 @@[m [mconst Record = () => {[m
+           const result = processWithFallback(transcript, getSubjectNames(), "Beginner");[m
+           setNotes(result.notes);[m
+           setSummary(result.summary);[m
+[31m-          setDetectedSubject(result.subject);[m
+[31m-          setSubjectConfidence(result.confidence);[m
+[32m+[m[32m          if (!isSubjectLocked) {[m
+[32m+[m[32m            setDetectedSubject(result.subject);[m
+[32m+[m[32m            setSubjectConfidence(result.confidence);[m
+[32m+[m[32m          }[m
+         } else {[m
+           // Generate notes using the summary service[m
+           const generatedNotes = generatePersonalizedSummary(transcript, "Beginner");[m
+[36m@@ -58,7 +86,7 @@[m [mconst Record = () => {[m
+           [m
+           // Detect subject[m
+           const subjectNames = getSubjectNames();[m
+[31m-          if (subjectNames.length > 0) {[m
+[32m+[m[32m          if (subjectNames.length > 0 && !isSubjectLocked) {[m
+             const { subject, confidence } = detectSubject(transcript, subjectNames);[m
+             setDetectedSubject(subject);[m
+             setSubjectConfidence(confidence);[m
+[36m@@ -75,7 +103,7 @@[m [mconst Record = () => {[m
+         });[m
+       }[m
+     }[m
+[31m-  }, [transcript, getSubjectNames, toast]);[m
+[32m+[m[32m  }, [transcript, getSubjectNames, toast, isSubjectLocked]);[m
+ [m
+   // Handle errors from the recorder[m
+   useEffect(() => {[m
+[36m@@ -100,6 +128,15 @@[m [mconst Record = () => {[m
+   }, [aiError, toast]);[m
+ [m
+   const startRecording = () => {[m
+[32m+[m[32m    setNotes("");[m
+[32m+[m[32m    setSummary("");[m
+[32m+[m[32m    setAiError(null);[m
+[32m+[m[32m    setDetectedSubject("General");[m
+[32m+[m[32m    setSubjectConfidence(0);[m
+[32m+[m[32m    setIsSubjectLocked(false);[m
+[32m+[m[32m    setPendingSubject(subjects[0]?.name || "General");[m
+[32m+[m[32m    recordingStartRef.current = Date.now();[m
+[32m+[m[32m    setRecordingDuration(0);[m
+     start();[m
+     toast({[m
+       title: "Recording Started",[m
+[36m@@ -109,22 +146,124 @@[m [mconst Record = () => {[m
+ [m
+   const stopRecording = () => {[m
+     stop();[m
+[32m+[m[32m    if (recordingStartRef.current) {[m
+[32m+[m[32m      setRecordingDuration(Date.now() - recordingStartRef.current);[m
+[32m+[m[32m      recordingStartRef.current = null;[m
+[32m+[m[32m    }[m
+     toast({[m
+       title: "Recording Stopped",[m
+       description: "Your notes have been generated",[m
+     });[m
+   };[m
+ [m
+[31m-  const saveNotes = () => {[m
+[31m-    // TODO: Save to Firebase[m
+[32m+[m[32m  const fullTranscript = transcript + (interimTranscript ? " " + interimTranscript : "");[m
+[32m+[m
+[32m+[m[32m  const handleSubjectUpdate = () => {[m
+[32m+[m[32m    if (!pendingSubject) {[m
+[32m+[m[32m      toast({[m
+[32m+[m[32m        title: "No subject selected",[m
+[32m+[m[32m        description: "Please select a subject before applying.",[m
+[32m+[m[32m        variant: "destructive",[m
+[32m+[m[32m      });[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    setDetectedSubject(pendingSubject);[m
+[32m+[m[32m    setSubjectConfidence(1);[m
+[32m+[m[32m    setIsSubjectLocked(true);[m
+[32m+[m[32m    setIsSubjectDialogOpen(false);[m
+     toast({[m
+[31m-      title: "Notes Saved Successfully",[m
+[31m-      description: "Your notes are now in your library",[m
+[32m+[m[32m      title: "Subject updated",[m
+[32m+[m[32m      description: `${pendingSubject} will be used for saving these notes.`,[m
+     });[m
+   };[m
+ [m
+[31m-  // Combine interim and final transcripts for live display[m
+[31m-  const fullTranscript = transcript + (interimTranscript ? " " + interimTranscript : "");[m
+[32m+[m[32m  const saveNotes = async () => {[m
+[32m+[m[32m    if (!fullTranscript.trim()) {[m
+[32m+[m[32m      toast({[m
+[32m+[m[32m        title: "Nothing to save",[m
+[32m+[m[32m        description: "Record some audio before saving notes.",[m
+[32m+[m[32m        variant: "destructive",[m
+[32m+[m[32m      });[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const user = getCurrentUser();[m
+[32m+[m[32m    if (!user) {[m
+[32m+[m[32m      toast({[m
+[32m+[m[32m        title: "Login required",[m
+[32m+[m[32m        description: "Please sign in to save your notes.",[m
+[32m+[m[32m        variant: "destructive",[m
+[32m+[m[32m      });[m
+[32m+[m[32m      navigate("/login");[m
+[32m+[m[32m      return;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const sanitizedTranscript = transcript.trim() || fullTranscript.trim();[m
+[32m+[m[32m    const summaryPreview = summary.trim().split(/[\n.]/).find(Boolean);[m
+[32m+[m[32m    const notesPreview = notes.trim().split("\n").find(Boolean);[m
+[32m+[m[32m    const transcriptPreview = sanitizedTranscript.split(/[.!?]/).find(Boolean);[m
+[32m+[m[32m    const generatedTitle =[m
+[32m+[m[32m      (summaryPreview || notesPreview || transcriptPreview || "").trim().slice(0, 80) ||[m
+[32m+[m[32m      `SmartNote AI Entry - ${new Date().toLocaleString()}`;[m
+[32m+[m[32m    const wordCount = fullTranscript.split(/\s+/).filter(Boolean).length;[m
+[32m+[m[32m    const durationMs =[m
+[32m+[m[32m      recordingDuration > 0 ? recordingDuration : Math.max(Math.round(wordCount * 400), 30000);[m
+[32m+[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      setIsSavingNote(true);[m
+[32m+[m
+[32m+[m[32m      let audioUrl: string | null = null;[m
+[32m+[m[32m      if (audioBlob && audioBlob.size > 0) {[m
+[32m+[m[32m        try {[m
+[32m+[m[32m          const audioRef = ref(storage, `users/${user.uid}/audio/${Date.now()}.webm`);[m
+[32m+[m[32m          const snapshot = await uploadBytes(audioRef, audioBlob, {[m
+[32m+[m[32m            contentType: "audio/webm",[m
+[32m+[m[32m          });[m
+[32m+[m[32m          audioUrl = await getDownloadURL(snapshot.ref);[m
+[32m+[m[32m        } catch (uploadError) {[m
+[32m+[m[32m          console.error("Audio upload failed:", uploadError);[m
+[32m+[m[32m          toast({[m
+[32m+[m[32m            title: "Audio upload failed",[m
+[32m+[m[32m            description: "Notes will be saved without the audio file.",[m
+[32m+[m[32m            variant: "destructive",[m
+[32m+[m[32m          });[m
+[32m+[m[32m        }[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      const notesRef = collection(db, "users", user.uid, "notes");[m
+[32m+[m[32m      await addDoc(notesRef, {[m
+[32m+[m[32m        subject: detectedSubject,[m
+[32m+[m[32m        subjectConfidence,[m
+[32m+[m[32m        title: generatedTitle,[m
+[32m+[m[32m        transcript: sanitizedTranscript,[m
+[32m+[m[32m        summary: summary.trim(),[m
+[32m+[m[32m        notes: notes.trim(),[m
+[32m+[m[32m        createdAt: serverTimestamp(),[m
+[32m+[m[32m        durationMs,[m
+[32m+[m[32m        audioUrl,[m
+[32m+[m[32m        stats: {[m
+[32m+[m[32m          words: wordCount,[m
+[32m+[m[32m          characters: fullTranscript.length,[m
+[32m+[m[32m        },[m
+[32m+[m[32m      });[m
+[32m+[m
+[32m+[m[32m      toast({[m
+[32m+[m[32m        title: "Notes saved",[m
+[32m+[m[32m        description: `Added to ${detectedSubject}`,[m
+[32m+[m[32m      });[m
+[32m+[m[32m    } catch (err) {[m
+[32m+[m[32m      const error = err as Error;[m
+[32m+[m[32m      console.error("Error saving notes:", error);[m
+[32m+[m[32m      toast({[m
+[32m+[m[32m        title: "Failed to save notes",[m
+[32m+[m[32m        description: error.message || "Please try again.",[m
+[32m+[m[32m        variant: "destructive",[m
+[32m+[m[32m      });[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setIsSavingNote(false);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  };[m
+ [m
+   return ([m
+     <DashboardLayout>[m
+[36m@@ -332,7 +471,23 @@[m [mconst Record = () => {[m
+                     )}[m
+                   </div>[m
+                 </div>[m
+[31m-                <Button variant="ghost" size="sm">[m
+[32m+[m[32m                <Button[m
+[32m+[m[32m                  variant="ghost"[m
+[32m+[m[32m                  size="sm"[m
+[32m+[m[32m                  onClick={() => {[m
+[32m+[m[32m                    if (subjects.length === 0) {[m
+[32m+[m[32m                      toast({[m
+[32m+[m[32m                        title: "No subjects available",[m
+[32m+[m[32m                        description: "Add at least one subject to change classification.",[m
+[32m+[m[32m                        variant: "destructive",[m
+[32m+[m[32m                      });[m
+[32m+[m[32m                      navigate("/subjects");[m
+[32m+[m[32m                      return;[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                    setPendingSubject(detectedSubject);[m
+[32m+[m[32m                    setIsSubjectDialogOpen(true);[m
+[32m+[m[32m                  }}[m
+[32m+[m[32m                >[m
+                   Change[m
+                 </Button>[m
+               </div>[m
+[36m@@ -347,14 +502,67 @@[m [mconst Record = () => {[m
+               size="lg" [m
+               variant="hero" [m
+               onClick={saveNotes} [m
+[31m-              className="min-w-[200px] transition-transform hover:scale-105 active:scale-95"[m
+[32m+[m[32m              disabled={isSavingNote}[m
+[32m+[m[32m              className="min-w-[220px] transition-transform hover:scale-105 active:scale-95 disabled:opacity-70"[m
+             >[m
+[31m-              <Save className="h-5 w-5 mr-2" />[m
+[31m-              Save Notes[m
+[32m+[m[32m              {isSavingNote ? ([m
+[32m+[m[32m                <>[m
+[32m+[m[32m                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />[m
+[32m+[m[32m                  Saving...[m
+[32m+[m[32m                </>[m
+[32m+[m[32m              ) : ([m
+[32m+[m[32m                <>[m
+[32m+[m[32m                  <Save className="h-5 w-5 mr-2" />[m
+[32m+[m[32m                  Save Notes[m
+[32m+[m[32m                </>[m
+[32m+[m[32m              )}[m
+             </Button>[m
+           </div>[m
+         )}[m
+       </div>[m
+[32m+[m[41m      [m
+[32m+[m[32m      <Dialog open={isSubjectDialogOpen} onOpenChange={setIsSubjectDialogOpen}>[m
+[32m+[m[32m        <DialogContent>[m
+[32m+[m[32m          <DialogHeader>[m
+[32m+[m[32m            <DialogTitle>Choose Subject</DialogTitle>[m
+[32m+[m[32m            <DialogDescription>[m
+[32m+[m[32m              Select the correct subject so your notes are organized properly.[m
+[32m+[m[32m            </DialogDescription>[m
+[32m+[m[32m          </DialogHeader>[m
+[32m+[m[41m          [m
+[32m+[m[32m          {subjects.length > 0 ? ([m
+[32m+[m[32m            <Select value={pendingSubject} onValueChange={setPendingSubject}>[m
+[32m+[m[32m              <SelectTrigger>[m
+[32m+[m[32m                <SelectValue placeholder="Select subject" />[m
+[32m+[m[32m              </SelectTrigger>[m
+[32m+[m[32m              <SelectContent>[m
+[32m+[m[32m                {subjects.map((subject) => ([m
+[32m+[m[32m                  <SelectItem key={subject.id} value={subject.name}>[m
+[32m+[m[32m                    {subject.name}[m
+[32m+[m[32m                  </SelectItem>[m
+[32m+[m[32m                ))}[m
+[32m+[m[32m              </SelectContent>[m
+[32m+[m[32m            </Select>[m
+[32m+[m[32m          ) : ([m
+[32m+[m[32m            <p className="text-sm text-muted-foreground">[m
+[32m+[m[32m              You don&apos;t have any subjects yet.{" "}[m
+[32m+[m[32m              <Button variant="link" className="px-1" onClick={() => navigate("/subjects")}>[m
+[32m+[m[32m                Add subjects[m
+[32m+[m[32m              </Button>[m
+[32m+[m[32m              to keep things organized.[m
+[32m+[m[32m            </p>[m
+[32m+[m[32m          )}[m
+[32m+[m[41m          [m
+[32m+[m[32m          <DialogFooter className="gap-2 sm:gap-0">[m
+[32m+[m[32m            <Button variant="outline" onClick={() => setIsSubjectDialogOpen(false)}>[m
+[32m+[m[32m              Cancel[m
+[32m+[m[32m            </Button>[m
+[32m+[m[32m            <Button onClick={handleSubjectUpdate} disabled={subjects.length === 0}>[m
+[32m+[m[32m              Apply[m
+[32m+[m[32m            </Button>[m
+[32m+[m[32m          </DialogFooter>[m
+[32m+[m[32m        </DialogContent>[m
+[32m+[m[32m      </Dialog>[m
+     </DashboardLayout>[m
+   );[m
+ };[m

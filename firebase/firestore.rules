@@ -23,12 +23,8 @@ service cloud.firestore {
       
       // Notes subcollection
       match /notes/{noteId} {
+        // Allow read and write (create, update, delete) if user owns the resource
         allow read, write: if isOwner(userId);
-        
-        // Allow creation with server timestamp
-        allow create: if isOwner(userId) 
-          && request.resource.data.keys().hasAll(['title', 'transcript', 'summary', 'subject', 'createdAt', 'durationMs'])
-          && request.resource.data.createdAt == request.time;
       }
       
       // Transcripts subcollection (optional)

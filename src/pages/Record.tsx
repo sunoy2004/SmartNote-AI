@@ -1,19 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Square, Save, Sparkles, Volume2, FileText, BookOpen, Lightbulb } from "lucide-react";
+import { Mic, Square, Save, Sparkles, Volume2, FileText, BookOpen, Lightbulb, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRecorder } from "@/hooks/useRecorder";
-import { generatePersonalizedSummary } from "@/services/summary";
+import { generatePersonalizedSummary, generateStructuredNotes } from "@/services/summary";
 import { detectSubject } from "@/services/subjectDetector";
 import { useSubjects } from "@/hooks/useSubjects";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/firebase/config";
 // Import our custom ML service
 import { processWithFallback, areCustomModelsAvailable } from "@/services/customML";
+import { useAuth } from "@/hooks/useAuth";
 
 const Record = () => {
-  const { 
+  const navigate = useNavigate();
+
+  const {
     isRecording, 
     transcript, 
     interimTranscript, 
@@ -27,9 +43,21 @@ const Record = () => {
   const [summary, setSummary] = useState("");
   const [detectedSubject, setDetectedSubject] = useState("General");
   const [subjectConfidence, setSubjectConfidence] = useState(0);
+  const [isSubjectDialogOpen, setIsSubjectDialogOpen] = useState(false);
+  const [pendingSubject, setPendingSubject] = useState("General");
+  const [isSubjectLocked, setIsSubjectLocked] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [showSaveSuccessDialog, setShowSaveSuccessDialog] = useState(false);
+  const recordingStartRef = useRef<number | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const [aiError, setAiError] = useState<string | null>(null);
   const { toast } = useToast();
   const { subjects, getSubjectNames } = useSubjects();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    setPendingSubject(detectedSubject);
+  }, [detectedSubject]);
 
   // Generate notes and summary in real-time as transcript updates
   useEffect(() => {
@@ -45,11 +73,13 @@ const Record = () => {
           const result = processWithFallback(transcript, getSubjectNames(), "Beginner");
           setNotes(result.notes);
           setSummary(result.summary);
-          setDetectedSubject(result.subject);
-          setSubjectConfidence(result.confidence);
+          if (!isSubjectLocked) {
+            setDetectedSubject(result.subject);
+            setSubjectConfidence(result.confidence);
+          }
         } else {
           // Generate notes using the summary service
-          const generatedNotes = generatePersonalizedSummary(transcript, "Beginner");
+          const generatedNotes = generateStructuredNotes(transcript);
           setNotes(generatedNotes);
           
           // Generate summary
@@ -58,7 +88,7 @@ const Record = () => {
           
           // Detect subject
           const subjectNames = getSubjectNames();
-          if (subjectNames.length > 0) {
+          if (subjectNames.length > 0 && !isSubjectLocked) {
             const { subject, confidence } = detectSubject(transcript, subjectNames);
             setDetectedSubject(subject);
             setSubjectConfidence(confidence);
@@ -75,7 +105,7 @@ const Record = () => {
         });
       }
     }
-  }, [transcript, getSubjectNames, toast]);
+  }, [transcript, getSubjectNames, toast, isSubjectLocked]);
 
   // Handle errors from the recorder
   useEffect(() => {
@@ -100,6 +130,15 @@ const Record = () => {
   }, [aiError, toast]);
 
   const startRecording = () => {
+    setNotes("");
+    setSummary("");
+    setAiError(null);
+    setDetectedSubject("General");
+    setSubjectConfidence(0);
+    setIsSubjectLocked(false);
+    setPendingSubject(subjects[0]?.name || "General");
+    recordingStartRef.current = Date.now();
+    setRecordingDuration(0);
     start();
     toast({
       title: "Recording Started",
@@ -109,22 +148,176 @@ const Record = () => {
 
   const stopRecording = () => {
     stop();
+    if (recordingStartRef.current) {
+      setRecordingDuration(Date.now() - recordingStartRef.current);
+      recordingStartRef.current = null;
+    }
     toast({
       title: "Recording Stopped",
       description: "Your notes have been generated",
     });
   };
 
-  const saveNotes = () => {
-    // TODO: Save to Firebase
+  const fullTranscript = transcript + (interimTranscript ? " " + interimTranscript : "");
+
+  const handleSubjectUpdate = () => {
+    if (!pendingSubject) {
+      toast({
+        title: "No subject selected",
+        description: "Please select a subject before applying.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDetectedSubject(pendingSubject);
+    setSubjectConfidence(1);
+    setIsSubjectLocked(true);
+    setIsSubjectDialogOpen(false);
     toast({
-      title: "Notes Saved Successfully",
-      description: "Your notes are now in your library",
+      title: "Subject updated",
+      description: `${pendingSubject} will be used for saving these notes.`,
     });
   };
 
-  // Combine interim and final transcripts for live display
-  const fullTranscript = transcript + (interimTranscript ? " " + interimTranscript : "");
+  const saveNotes = async () => {
+    if (!fullTranscript.trim()) {
+      toast({
+        title: "Nothing to save",
+        description: "Record some audio before saving notes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please sign in to save your notes.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    const sanitizedTranscript = transcript.trim() || fullTranscript.trim();
+    const summaryPreview = summary.trim().split(/[\n.]/).find(Boolean);
+    const notesPreview = notes.trim().split("\n").find(Boolean);
+    const transcriptPreview = sanitizedTranscript.split(/[.!?]/).find(Boolean);
+    const generatedTitle =
+      (summaryPreview || notesPreview || transcriptPreview || "").trim().slice(0, 80) ||
+      `SmartNote AI Entry - ${new Date().toLocaleString()}`;
+    const wordCount = fullTranscript.split(/\s+/).filter(Boolean).length;
+    const durationMs =
+      recordingDuration > 0 ? recordingDuration : Math.max(Math.round(wordCount * 400), 30000);
+
+    try {
+      setIsSavingNote(true);
+
+      let audioUrl: string | null = null;
+      if (audioBlob && audioBlob.size > 0) {
+        try {
+          const audioRef = ref(storage, `users/${user.uid}/audio/${Date.now()}.webm`);
+          const snapshot = await uploadBytes(audioRef, audioBlob, {
+            contentType: "audio/webm",
+          });
+          audioUrl = await getDownloadURL(snapshot.ref);
+          console.log("✅ Audio uploaded successfully:", audioUrl);
+        } catch (uploadError: any) {
+          console.error("❌ Audio upload failed:", uploadError);
+          
+          // Check if it's a CORS error
+          const isCorsError = uploadError?.code === "storage/unauthorized" || 
+                             uploadError?.message?.includes("CORS") ||
+                             uploadError?.message?.includes("preflight");
+          
+          if (isCorsError) {
+            console.warn("⚠️ CORS error detected. Audio upload skipped. Notes will be saved without audio.");
+            toast({
+              title: "Audio upload skipped",
+              description: "CORS configuration needed. Notes saved without audio file.",
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Audio upload failed",
+              description: "Notes will be saved without the audio file.",
+              variant: "destructive",
+            });
+          }
+        }
+      }
+
+      // Use the locked subject if available, otherwise use detected subject
+      const finalSubject = isSubjectLocked ? detectedSubject : detectedSubject;
+
+      const notesRef = collection(db, "users", user.uid, "notes");
+      const docRef = await addDoc(notesRef, {
+        subject: finalSubject,
+        subjectConfidence,
+        title: generatedTitle,
+        transcript: sanitizedTranscript,
+        summary: summary.trim() || "No summary generated.",
+        notes: notes.trim() || "No notes generated.",
+        createdAt: serverTimestamp(),
+        durationMs,
+        audioUrl,
+        stats: {
+          words: wordCount,
+          characters: fullTranscript.length,
+        },
+      });
+
+      console.log("✅ Note saved successfully with ID:", docRef.id);
+
+      // Show success dialog popup
+      setShowSaveSuccessDialog(true);
+
+      // Also show toast notification
+      toast({
+        title: "Notes saved successfully!",
+        description: `Added to ${finalSubject}`,
+      });
+
+      // Reset the form after successful save
+      setTimeout(() => {
+        setShowSaveSuccessDialog(false);
+        navigate("/dashboard");
+      }, 2000);
+    } catch (err) {
+      console.error("❌ Error saving notes:", err);
+      
+      // Better error handling for Firestore errors
+      let errorMessage = "Failed to save notes. Please try again.";
+      
+      if (err && typeof err === "object" && "code" in err) {
+        const firestoreError = err as { code: string; message: string };
+        switch (firestoreError.code) {
+          case "permission-denied":
+            errorMessage = "Permission denied. Please make sure Firestore rules are deployed and you're logged in.";
+            break;
+          case "unavailable":
+            errorMessage = "Firestore is unavailable. Please check your internet connection.";
+            break;
+          case "failed-precondition":
+            errorMessage = "Operation failed. Please try again.";
+            break;
+          default:
+            errorMessage = firestoreError.message || errorMessage;
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
+      toast({
+        title: "Failed to save notes",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -136,6 +329,16 @@ const Record = () => {
             AI will automatically transcribe, take notes, and detect your subject
           </p>
         </div>
+
+        {subjects.length === 0 && (
+          <Card className="border border-amber-300 bg-amber-50 text-amber-900">
+            <CardContent className="p-4 text-sm">
+              You haven&apos;t added any subjects yet. Recordings will be saved
+              under <strong>General</strong>. Add subjects later to organize
+              your notes.
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recording Control */}
         <div className="flex justify-center">
@@ -332,7 +535,23 @@ const Record = () => {
                     )}
                   </div>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (subjects.length === 0) {
+                      toast({
+                        title: "No subjects available",
+                        description: "Add at least one subject to change classification.",
+                        variant: "destructive",
+                      });
+                      navigate("/subjects");
+                      return;
+                    }
+                    setPendingSubject(detectedSubject);
+                    setIsSubjectDialogOpen(true);
+                  }}
+                >
                   Change
                 </Button>
               </div>
@@ -347,14 +566,84 @@ const Record = () => {
               size="lg" 
               variant="hero" 
               onClick={saveNotes} 
-              className="min-w-[200px] transition-transform hover:scale-105 active:scale-95"
+              disabled={isSavingNote}
+              className="min-w-[220px] transition-transform hover:scale-105 active:scale-95 disabled:opacity-70"
             >
-              <Save className="h-5 w-5 mr-2" />
-              Save Notes
+              {isSavingNote ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5 mr-2" />
+                  Save Notes
+                </>
+              )}
             </Button>
           </div>
         )}
       </div>
+      
+      <Dialog open={isSubjectDialogOpen} onOpenChange={setIsSubjectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Choose Subject</DialogTitle>
+            <DialogDescription>
+              Select the correct subject so your notes are organized properly.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {subjects.length > 0 ? (
+            <Select value={pendingSubject} onValueChange={setPendingSubject}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjects.map((subject) => (
+                  <SelectItem key={subject.id} value={subject.name}>
+                    {subject.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              You don&apos;t have any subjects yet.{" "}
+              <Button variant="link" className="px-1" onClick={() => navigate("/subjects")}>
+                Add subjects
+              </Button>
+              to keep things organized.
+            </p>
+          )}
+          
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsSubjectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubjectUpdate} disabled={subjects.length === 0}>
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Dialog Popup */}
+      <Dialog open={showSaveSuccessDialog} onOpenChange={setShowSaveSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-2xl">Notes Saved!</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Your notes have been successfully saved to your account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <div className="rounded-full bg-green-100 dark:bg-green-900/50 p-4">
+              <Save className="h-12 w-12 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

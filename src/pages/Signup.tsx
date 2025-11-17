@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { signUpWithEmail } from "@/services/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 const Signup = () => {
   const [name, setName] = useState("");
@@ -15,14 +17,30 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords do not match",
+        title: "Passwords do not match",
+        description: "Please re-enter matching passwords.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Weak password",
+        description: "Password must be at least 6 characters long.",
         variant: "destructive",
       });
       return;
@@ -30,15 +48,23 @@ const Signup = () => {
 
     setIsLoading(true);
 
-    // TODO: Integrate Firebase authentication
-    setTimeout(() => {
+    try {
+      const credential = await signUpWithEmail(email, password, name);
       toast({
-        title: "Account Created",
-        description: "Welcome to SmartNote AI!",
+        title: "Account created",
+        description: `Welcome to SmartNote AI, ${credential.user.displayName || "there"}!`,
       });
-      navigate("/subject-setup");
+      navigate("/subject-setup", { replace: true });
+    } catch (err) {
+      const error = err as Error;
+      toast({
+        title: "Signup failed",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

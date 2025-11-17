@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { AuthProvider } from "@/hooks/useAuth";
 
 // Public routes (no authentication required)
 import Landing from "./pages/Landing";
@@ -18,6 +20,7 @@ import NoteDetail from "./pages/NoteDetail";
 import Subjects from "./pages/Subjects";
 import Settings from "./pages/Settings";
 import SubjectSetup from "./pages/SubjectSetup";
+import SubjectNotes from "./pages/SubjectNotes";
 
 // Initialize query client
 const queryClient = new QueryClient();
@@ -36,25 +39,82 @@ const App = () => {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              
-              {/* Protected Routes */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/record" element={<Record />} />
-              <Route path="/notes/:id" element={<NoteDetail />} />
-              <Route path="/subjects" element={<Subjects />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/subject-setup" element={<SubjectSetup />} />
-              
-              {/* Catch-all Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <AuthProvider>
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Landing />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                
+                {/* Protected Routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/record"
+                  element={
+                    <ProtectedRoute>
+                      <Record />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/notes/:id"
+                  element={
+                    <ProtectedRoute>
+                      <NoteDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/subjects"
+                  element={
+                    <ProtectedRoute>
+                      <Subjects />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/subjects/:subjectSlug"
+                  element={
+                    <ProtectedRoute>
+                      <SubjectNotes />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/subject-setup"
+                  element={
+                    <ProtectedRoute>
+                      <SubjectSetup />
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Catch-all Route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
